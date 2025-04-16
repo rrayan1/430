@@ -42,7 +42,7 @@ class AdditionalInfoPage extends StatelessWidget {
                   height: 48,
                   child: ElevatedButton(
                     onPressed: () {
-                      // Connect firebase
+                      // Connect firebase or maybe change it so user sets up info in profile
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF3B50FF),

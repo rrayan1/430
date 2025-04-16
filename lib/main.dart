@@ -5,8 +5,15 @@ import 'pages/login_page.dart';
 import 'pages/signup_page.dart';
 import 'pages/additional_info_page.dart';
 import 'pages/doctor_signup_page.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const DoctorApp());
 }
 
@@ -18,9 +25,8 @@ class DoctorApp extends StatelessWidget {
     return MaterialApp(
       title: 'Carebook',
       debugShowCheckedModeBanner: false,
-      initialRoute: '/',
+      home: const HomePage(),
       routes: {
-        '/': (context) => const HomePage(),
         '/profile': (context) => const ProfilePage(),
         '/login': (context) => const LoginPage(),
         '/signup': (context) => const SignupPage(),
