@@ -6,16 +6,16 @@ class CustomNavBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      title: const Text('Doctor Web App'),
+      title: const Text('Carebook'),
       backgroundColor: Colors.blue,
       actions: [
         TextButton(
-          onPressed: () => Navigator.pushNamed(context, '/'),
-          child: const Text("Home", style: TextStyle(color: Colors.white)),
+          onPressed: () => Navigator.pushNamed(context, '/login'),
+          child: const Text("Sign In", style: TextStyle(color: Colors.white)),
         ),
         TextButton(
-          onPressed: () => Navigator.pushNamed(context, '/profile'),
-          child: const Text("Profile", style: TextStyle(color: Colors.white)),
+          onPressed: () => Navigator.pushNamed(context, '/signup'),
+          child: const Text("Sign Up", style: TextStyle(color: Colors.white)),
         ),
       ],
     );
