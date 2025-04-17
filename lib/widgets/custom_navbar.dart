@@ -9,6 +9,7 @@ class CustomNavBar extends StatelessWidget implements PreferredSizeWidget {
     final user = FirebaseAuth.instance.currentUser;
 
     return AppBar(
+      automaticallyImplyLeading: false,
       title: const Text('Carebook'),
       backgroundColor: Colors.blue,
       actions: [
@@ -29,7 +30,7 @@ class CustomNavBar extends StatelessWidget implements PreferredSizeWidget {
           TextButton(
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
-              Navigator.pushReplacementNamed(context, '/login');
+              Navigator.pushReplacementNamed(context, '/');
             },
             child: const Text("Logout", style: TextStyle(color: Colors.white)),
           ),

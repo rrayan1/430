@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import '../widgets/service_card.dart';
 import '../widgets/doctor_card.dart';
-import '../widgets/cust_navBar.dart';
+import '../widgets/custom_navbar.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});

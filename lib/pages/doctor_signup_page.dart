@@ -8,7 +8,7 @@ class DoctorSignupPage extends StatelessWidget {
     return Scaffold(
       body: Center(
         child: SizedBox(
-          width: 600,
+          width: 800,
           child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Column(
@@ -27,16 +27,40 @@ class DoctorSignupPage extends StatelessWidget {
                 const Text("Additional Information",
                     style:
                         TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 24),
-                _doctorRow("Age", "Age"),
-                _doctorRow("Gender", "Gender"),
-                _doctorRow("Specialization", "Specialization"),
-                _doctorRow("Experience", "Range",
-                    suffix: const Icon(Icons.arrow_drop_down)),
-                _doctorRow("Availability", "Add", isButton: true),
-                _doctorRow("Consultation Fees", "Add", isButton: true),
-                _doctorRow("Upload your image", "Add", isButton: true),
-                _doctorRow("Upload your credentials", "Add", isButton: true),
+                const SizedBox(height: 20),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        children: [
+                          _doctorRow("Name", "Name"),
+                          _doctorRow("Email", "Email"),
+                          _doctorRow("Age", "Age"),
+                          _doctorRow("Gender", "Gender"),
+                          _doctorRow("Specialization", "Specialization"),
+                          _doctorRow("Experience", "Range",
+                              suffix: const Icon(Icons.arrow_drop_down)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          _doctorRow("Phone", "Phone Number"),
+                          _doctorRow("Availability", "Add", isButton: true),
+                          _doctorRow("Consultation Fees", "Add",
+                              isButton: true),
+                          _doctorRow("Upload your image", "Add",
+                              isButton: true),
+                          _doctorRow("Upload your credentials", "Add",
+                              isButton: true),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
@@ -51,16 +75,11 @@ class DoctorSignupPage extends StatelessWidget {
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    child: const Text("Finish",
+                    child: const Text("Sign-up as a doctor",
                         style: TextStyle(
                             color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                 ),
-                const SizedBox(height: 12),
-                const Text(
-                  "An email will be sent to you after your medical credentials have been verified.",
-                  style: TextStyle(fontSize: 13),
-                )
               ],
             ),
           ),
@@ -69,7 +88,7 @@ class DoctorSignupPage extends StatelessWidget {
     );
   }
 
-  Widget _doctorRow(String label, String hint,
+  static Widget _doctorRow(String label, String hint,
       {bool isButton = false, Widget? suffix}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
