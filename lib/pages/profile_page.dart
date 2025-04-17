@@ -45,7 +45,7 @@ class _ProfilePageState extends State<ProfilePage> {
         _emergencyContactController.text = data['emergencyContact'] ?? '';
       }
     } catch (e) {
-      debugPrint('❌ Error loading user data: $e');
+      debugPrint('Error loading user data: $e');
     }
 
     setState(() => _isLoading = false);

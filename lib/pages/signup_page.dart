@@ -50,7 +50,7 @@ class _SignupPageState extends State<SignupPage> {
         const SnackBar(content: Text('Account created successfully!')),
       );
 
-      Navigator.pushReplacementNamed(context, '/home');
+      Navigator.pushReplacementNamed(context, '/');
     } on FirebaseAuthException catch (e) {
       showDialog(
         context: context,
