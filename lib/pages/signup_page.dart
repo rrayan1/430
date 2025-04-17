@@ -37,20 +37,15 @@ class _SignupPageState extends State<SignupPage> {
         'name': _nameController.text.trim(),
         'email': _emailController.text.trim(),
         'phone': _phoneController.text.trim(),
+        'role': 'patient',
         'createdAt': Timestamp.now(),
-        'age': '',
-        'gender': '',
-        'bloodType': '',
-        'allergies': '',
-        'homeAddress': '',
-        'emergencyContact': '',
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Account created successfully!')),
       );
 
-      Navigator.pushReplacementNamed(context, '/');
+      Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
     } on FirebaseAuthException catch (e) {
       showDialog(
         context: context,
@@ -82,6 +77,12 @@ class _SignupPageState extends State<SignupPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading:
+            true, // <-- This shows the back button nicely
+        title: const Text('Sign Up'),
+        centerTitle: true,
+      ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -93,11 +94,6 @@ class _SignupPageState extends State<SignupPage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  const SizedBox(height: 8),
                   const Text(
                     "Create your account",
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),

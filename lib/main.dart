@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:labproject/pages/doctor_home_page.dart';
 import 'pages/home_page.dart';
 import 'pages/profile_page.dart';
 import 'pages/login_page.dart';
@@ -29,6 +30,7 @@ class DoctorApp extends StatelessWidget {
         '/login': (context) => const LoginPage(),
         '/signup': (context) => const SignupPage(),
         '/doctor_signup': (context) => const DoctorSignupPage(),
+        '/doctor_home': (context) => const DoctorHomePage(),
       },
     );
   }

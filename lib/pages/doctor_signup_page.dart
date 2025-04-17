@@ -1,86 +1,130 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class DoctorSignupPage extends StatelessWidget {
+class DoctorSignupPage extends StatefulWidget {
   const DoctorSignupPage({super.key});
+
+  @override
+  State<DoctorSignupPage> createState() => _DoctorSignupPageState();
+}
+
+class _DoctorSignupPageState extends State<DoctorSignupPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _phoneController = TextEditingController();
+
+  bool _isLoading = false;
+
+  Future<void> _signUpDoctor() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final authResult =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+
+      final uid = authResult.user?.uid;
+
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'uid': uid,
+        'name': _nameController.text.trim(),
+        'email': _emailController.text.trim(),
+        'phone': _phoneController.text.trim(),
+        'role': 'doctor',
+        'createdAt': Timestamp.now(),
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Doctor account created successfully!')),
+      );
+
+      Navigator.of(context)
+          .pushNamedAndRemoveUntil('/doctor_home', (route) => false);
+    } on FirebaseAuthException catch (e) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Sign Up Failed"),
+          content: Text(e.message ?? "Unknown error occurred."),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("OK"),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: true, // Shows back button if available
+        title: const Text("Doctor Sign Up"),
+        centerTitle: true,
+      ),
       body: Center(
-        child: SizedBox(
-          width: 800,
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: () => Navigator.pop(context),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  "Create your account",
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 24),
-                const Text("Additional Information",
-                    style:
-                        TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 20),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        children: [
-                          _doctorRow("Name", "Name"),
-                          _doctorRow("Email", "Email"),
-                          _doctorRow("Age", "Age"),
-                          _doctorRow("Gender", "Gender"),
-                          _doctorRow("Specialization", "Specialization"),
-                          _doctorRow("Experience", "Range",
-                              suffix: const Icon(Icons.arrow_drop_down)),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: Column(
-                        children: [
-                          _doctorRow("Phone", "Phone Number"),
-                          _doctorRow("Availability", "Add", isButton: true),
-                          _doctorRow("Consultation Fees", "Add",
-                              isButton: true),
-                          _doctorRow("Upload your image", "Add",
-                              isButton: true),
-                          _doctorRow("Upload your credentials", "Add",
-                              isButton: true),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/additional_info');
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3B50FF),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: const Text("Sign-up as a doctor",
-                        style: TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.bold)),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: SizedBox(
+            width: 800,
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _inputField(_nameController, "Full Name", Icons.person),
+                  const SizedBox(height: 12),
+                  _inputField(_emailController, "Email", Icons.mail),
+                  const SizedBox(height: 12),
+                  _inputField(_passwordController, "Password", Icons.lock,
+                      isObscure: true),
+                  const SizedBox(height: 12),
+                  _inputField(_phoneController, "Phone Number", Icons.phone),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : ElevatedButton(
+                            onPressed: _signUpDoctor,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF3B50FF),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: const Text(
+                              "Sign Up as a Doctor",
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -88,38 +132,21 @@ class DoctorSignupPage extends StatelessWidget {
     );
   }
 
-  static Widget _doctorRow(String label, String hint,
-      {bool isButton = false, Widget? suffix}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          SizedBox(width: 160, child: Text(label)),
-          Expanded(
-            child: isButton
-                ? ElevatedButton.icon(
-                    onPressed: () {},
-                    icon: const Icon(Icons.add),
-                    label: Text(hint),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFBFCBFF),
-                      foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  )
-                : TextField(
-                    decoration: InputDecoration(
-                      hintText: hint,
-                      suffixIcon: suffix,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-          ),
-        ],
+  Widget _inputField(
+    TextEditingController controller,
+    String hint,
+    IconData icon, {
+    bool isObscure = false,
+  }) {
+    return TextFormField(
+      controller: controller,
+      obscureText: isObscure,
+      validator: (value) =>
+          value == null || value.trim().isEmpty ? 'Please enter $hint' : null,
+      decoration: InputDecoration(
+        prefixIcon: Icon(icon),
+        hintText: hint,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
