@@ -3,6 +3,8 @@ import 'package:flutter/gestures.dart';
 import '../widgets/service_card.dart';
 import '../widgets/doctor_card.dart';
 import '../widgets/custom_navbar.dart';
+import 'package:labproject/pages/chatbot_page.dart';
+
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -25,9 +27,21 @@ class HomePage extends StatelessWidget {
                       style:
                           TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  const Text(
-                      "Enter your symptoms, language, and doctor preference to get AI-powered recommendations"),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => ChatbotPage()),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                    ),
+                    child: const Text("Open AI Chatbot"),
+                  ),
                   const SizedBox(height: 16),
+
                   ElevatedButton(
                     onPressed: null,
                     style: ElevatedButton.styleFrom(
