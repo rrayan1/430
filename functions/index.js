@@ -4,9 +4,18 @@ const axios = require("axios");
 exports.getDoctorRecommendation = functions.https.onCall(async (data, context) => {
   const prompt = data.prompt;
 
+  // ✅ Add validation to avoid undefined errors
+  if (!prompt || typeof prompt !== "string") {
+    console.error("❌ Invalid or missing prompt.");
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'The function must be called with a string "prompt".'
+    );
+  }
+
   try {
     const response = await axios.post(
-      "https://api.cohere.ai/v1/generate", // ✅ Corrected URL
+      "https://api.cohere.ai/v1/generate",
       {
         model: "command",
         prompt: prompt,

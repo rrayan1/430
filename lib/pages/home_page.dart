@@ -4,7 +4,7 @@ import '../widgets/service_card.dart';
 import '../widgets/doctor_card.dart';
 import '../widgets/custom_navbar.dart';
 import 'package:labproject/pages/chatbot_page.dart';
-
+import 'package:labproject/pages/schedule_page.dart'; // ✅ New
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -23,38 +23,71 @@ class HomePage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("Find the Right Doctor",
-                      style:
-                          TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  const Text(
+                    "Find the Right Doctor",
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 8),
-                  ElevatedButton(
+
+                  // 🧠 AI Recommendation Button
+                  ElevatedButton.icon(
                     onPressed: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(builder: (context) => ChatbotPage()),
                       );
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                    icon: const Icon(Icons.local_hospital, color: Colors.white),
+                    label: const Text(
+                      "AI Doctor Recommendation",
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
                     ),
-                    child: const Text("Open AI Chatbot"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blueAccent,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 6,
+                      shadowColor: Colors.black54,
+                    ),
                   ),
                   const SizedBox(height: 16),
 
-                  ElevatedButton(
-                    onPressed: null,
+                  // 📅 Schedule Appointment Button
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const SchedulePage()),
+                      );
+                    },
+                    icon: const Icon(Icons.calendar_month, color: Colors.white),
+                    label: const Text(
+                      "Schedule an Appointment",
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
+                    ),
                     style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 32, vertical: 16)),
-                    child: const Text("AI Doctor Recommendation"),
+                      backgroundColor: Colors.green,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 6,
+                      shadowColor: Colors.black54,
+                    ),
                   ),
                   const SizedBox(height: 32),
-                  const Text("Services",
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+
+                  const Text(
+                    "Services",
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 16),
+
+                  // 🔄 Services List
                   SizedBox(
                     height: 120,
                     child: ScrollConfiguration(
@@ -69,57 +102,41 @@ class HomePage extends StatelessWidget {
                         physics: const ClampingScrollPhysics(),
                         children: const [
                           SizedBox(
-                              width: 140,
-                              child: ServiceCard(
-                                  title: "Odontology",
-                                  icon: Icons.medical_services)),
+                            width: 140,
+                            child: ServiceCard(
+                                title: "Neurology", icon: Icons.psychology),
+                          ),
                           SizedBox(width: 8),
                           SizedBox(
-                              width: 140,
-                              child: ServiceCard(
-                                  title: "Neurology", icon: Icons.psychology)),
+                            width: 140,
+                            child: ServiceCard(
+                                title: "Cardiology", icon: Icons.favorite),
+                          ),
                           SizedBox(width: 8),
                           SizedBox(
-                              width: 140,
-                              child: ServiceCard(
-                                  title: "Cardiology", icon: Icons.favorite)),
+                            width: 140,
+                            child: ServiceCard(
+                                title: "Dermatology", icon: Icons.healing),
+                          ),
                           SizedBox(width: 8),
                           SizedBox(
-                              width: 140,
-                              child: ServiceCard(
-                                  title: "Dermatology", icon: Icons.healing)),
-                          SizedBox(width: 8),
-                          SizedBox(
-                              width: 140,
-                              child: ServiceCard(
-                                  title: "Pediatrics",
-                                  icon: Icons.child_friendly)),
-                          SizedBox(width: 8),
-                          SizedBox(
-                              width: 140,
-                              child: ServiceCard(
-                                  title: "Psychiatry",
-                                  icon: Icons.psychology_alt)),
-                          SizedBox(width: 8),
-                          SizedBox(
-                              width: 140,
-                              child: ServiceCard(
-                                  title: "Orthopedics",
-                                  icon: Icons.accessibility_new)),
-                          SizedBox(width: 8),
-                          SizedBox(
-                              width: 140,
-                              child: ServiceCard(
-                                  title: "Radiology", icon: Icons.scanner)),
+                            width: 140,
+                            child: ServiceCard(
+                                title: "Pediatrics", icon: Icons.child_friendly),
+                          ),
                         ],
                       ),
                     ),
                   ),
+
                   const SizedBox(height: 32),
-                  const Text("Top Doctors",
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  const Text(
+                    "Top Doctors",
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 16),
+
+                  // 👨‍⚕️ Top Doctors List
                   SizedBox(
                     height: 140,
                     child: ScrollConfiguration(
@@ -163,17 +180,6 @@ class HomePage extends StatelessWidget {
                               time: "9:00 AM - 2:00",
                               fee: "\$20",
                               rating: 4.9,
-                            ),
-                          ),
-                          SizedBox(width: 16),
-                          SizedBox(
-                            width: 250,
-                            child: DoctorCard(
-                              name: "Dr. Sam Tan",
-                              title: "Neurologist",
-                              time: "11:00 AM - 5:00",
-                              fee: "\$18",
-                              rating: 4.7,
                             ),
                           ),
                         ],
