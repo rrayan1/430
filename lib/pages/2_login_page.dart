@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
@@ -65,12 +66,29 @@ class LoginPage extends StatelessWidget {
                     ),
                     onPressed: () async {
                       try {
-                        await FirebaseAuth.instance.signInWithEmailAndPassword(
+                        final credential = await FirebaseAuth.instance
+                            .signInWithEmailAndPassword(
                           email: emailController.text.trim(),
                           password: passwordController.text.trim(),
                         );
 
-                        Navigator.pushReplacementNamed(context, '/');
+                        final user = credential.user;
+                        if (user != null) {
+                          final snapshot = await FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(user.uid)
+                              .get();
+
+                          final data = snapshot.data();
+                          final isDoctor = data != null &&
+                              data.containsKey('role') &&
+                              data['role'] == 'doctor';
+
+                          Navigator.pushReplacementNamed(
+                            context,
+                            isDoctor ? '/doctor_home' : '/home',
+                          );
+                        }
                       } on FirebaseAuthException catch (e) {
                         showDialog(
                           context: context,

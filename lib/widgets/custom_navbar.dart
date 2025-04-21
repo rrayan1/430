@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // 🔥 ADD this import
 
 class CustomNavBar extends StatelessWidget implements PreferredSizeWidget {
   const CustomNavBar({super.key});
@@ -24,7 +25,24 @@ class CustomNavBar extends StatelessWidget implements PreferredSizeWidget {
           ),
         ] else ...[
           TextButton(
-            onPressed: () => Navigator.pushNamed(context, '/profile'),
+            onPressed: () async {
+              final user = FirebaseAuth.instance.currentUser;
+              if (user != null) {
+                final snapshot = await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(user.uid)
+                    .get();
+
+                final data = snapshot.data();
+                final isDoctor = data != null && data['role'] == 'doctor';
+
+                if (isDoctor) {
+                  Navigator.pushNamed(context, '/doctor_profile');
+                } else {
+                  Navigator.pushNamed(context, '/profile');
+                }
+              }
+            },
             child: const Text("Profile", style: TextStyle(color: Colors.white)),
           ),
           TextButton(

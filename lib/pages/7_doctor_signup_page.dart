@@ -84,7 +84,7 @@ class _DoctorSignupPageState extends State<DoctorSignupPage> {
         'role': 'doctor',
       });
 
-      Navigator.pushReplacementNamed(context, '/doctor-home');
+      Navigator.pushReplacementNamed(context, '/doctor_home');
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Signup failed: $e")),

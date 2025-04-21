@@ -4,8 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/service_card.dart';
 import '../widgets/doctor_card.dart';
 import '../widgets/custom_navbar.dart';
-import 'package:labproject/pages/chatbot_page.dart';
-import 'package:labproject/pages/schedule_page.dart';
+import 'package:labproject/pages/5_chatbot_page.dart';
+import 'package:labproject/pages/6_schedule_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
