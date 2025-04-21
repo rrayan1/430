@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/service_card.dart';
 import '../widgets/doctor_card.dart';
 import '../widgets/custom_navbar.dart';
 import 'package:labproject/pages/chatbot_page.dart';
-import 'package:labproject/pages/schedule_page.dart'; // ✅ New
+import 'package:labproject/pages/schedule_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -28,13 +29,12 @@ class HomePage extends StatelessWidget {
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
-
-                  // 🧠 AI Recommendation Button
                   ElevatedButton.icon(
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => ChatbotPage()),
+                        MaterialPageRoute(
+                            builder: (context) => const ChatbotPage()),
                       );
                     },
                     icon: const Icon(Icons.local_hospital, color: Colors.white),
@@ -47,21 +47,27 @@ class HomePage extends StatelessWidget {
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blueAccent,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                       elevation: 6,
                       shadowColor: Colors.black54,
                     ),
                   ),
                   const SizedBox(height: 16),
-
-                  // 📅 Schedule Appointment Button
                   ElevatedButton.icon(
                     onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const SchedulePage()),
-                      );
+                      final user = FirebaseAuth.instance.currentUser;
+                      if (user != null) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const SchedulePage()),
+                        );
+                      } else {
+                        Navigator.pushNamed(context, '/login');
+                      }
                     },
                     icon: const Icon(Icons.calendar_month, color: Colors.white),
                     label: const Text(
@@ -73,21 +79,20 @@ class HomePage extends StatelessWidget {
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                       elevation: 6,
                       shadowColor: Colors.black54,
                     ),
                   ),
                   const SizedBox(height: 32),
-
                   const Text(
                     "Services",
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
-
-                  // 🔄 Services List
                   SizedBox(
                     height: 120,
                     child: ScrollConfiguration(
@@ -122,21 +127,19 @@ class HomePage extends StatelessWidget {
                           SizedBox(
                             width: 140,
                             child: ServiceCard(
-                                title: "Pediatrics", icon: Icons.child_friendly),
+                                title: "Pediatrics",
+                                icon: Icons.child_friendly),
                           ),
                         ],
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 32),
                   const Text(
                     "Top Doctors",
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
-
-                  // 👨‍⚕️ Top Doctors List
                   SizedBox(
                     height: 140,
                     child: ScrollConfiguration(
