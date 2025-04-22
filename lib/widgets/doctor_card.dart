@@ -30,13 +30,6 @@ class DoctorCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [Text(title), Text(time), Text("Fee: $fee")],
         ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.star, color: Colors.yellow[700]),
-            Text(rating.toString()),
-          ],
-        ),
       ),
     );
   }

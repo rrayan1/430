@@ -14,31 +14,234 @@ class SchedulePage extends StatefulWidget {
 
 class _SchedulePageState extends State<SchedulePage> {
   DateTime _currentMonth = DateTime.now();
-  String? _selectedDoctor;
+  String? _selectedDoctorUID;
   final Map<String, List<Map<String, String>>> _appointments = {};
   final _firestore = FirebaseFirestore.instance;
-  final List<String> _doctors = [
-    'Dr. Lina (Cardiology)',
-    'Dr. Ali (Neurology)',
-    'Dr. Moe (Pediatrics)',
-  ];
+  List<Map<String, String>> _doctorList = [];
+  List<Map<String, dynamic>> _myAppointments = [];
 
   @override
   void initState() {
     super.initState();
+    _loadDoctorsFromDB();
     _loadAppointmentsFromDB();
   }
 
-  void _nextMonth() {
+  Map<String, int> manualSplit(String input) {
+    input = input.replaceAll(RegExp(r'[^\x20-\x7E]'), '').trim();
+    final match = RegExp(r'^(\d{1,2}):(\d{2})\s*(AM|PM)$', caseSensitive: false)
+        .firstMatch(input);
+    if (match == null) {
+      throw FormatException('Invalid time format: $input');
+    }
+    int hour = int.parse(match.group(1)!);
+    int minute = int.parse(match.group(2)!);
+    String ampm = match.group(3)!.toUpperCase();
+    if (ampm == 'PM' && hour != 12) hour += 12;
+    if (ampm == 'AM' && hour == 12) hour = 0;
+    return {'hour': hour, 'minute': minute};
+  }
+
+  Future<void> _loadDoctorsFromDB() async {
+    final snapshot = await _firestore
+        .collection('users')
+        .where('role', isEqualTo: 'doctor')
+        .get();
+
     setState(() {
-      _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1);
+      _doctorList = snapshot.docs.map((doc) {
+        final data = doc.data();
+        final name = data['name'] ?? 'Unknown';
+        final specialization = data['specialization'] ?? 'Specialist';
+        return {
+          'display': 'Dr. $name ($specialization)',
+          'uid': doc.id,
+        };
+      }).toList();
     });
   }
 
-  void _previousMonth() {
+  Future<void> _loadAppointmentsFromDB() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final userId = user.uid;
+
+    final snapshot = await _firestore
+        .collection('appointments')
+        .where('userId', isEqualTo: userId)
+        .get();
+
     setState(() {
-      _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1);
+      _appointments.clear();
+      _myAppointments.clear();
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final date = data['date'];
+        final slot = data['slot'];
+        final doctor = data['doctor'];
+
+        _appointments.putIfAbsent(date, () => []).add({
+          'slot': slot,
+          'doctor': doctor,
+        });
+
+        _myAppointments.add({
+          'id': doc.id,
+          'date': date,
+          'slot': slot,
+          'doctor': doctor,
+        });
+      }
     });
+  }
+
+  Future<List<String>> _getBookedSlots(String doctorUID, String date) async {
+    final snapshot = await _firestore
+        .collection('appointments')
+        .where('doctor', isEqualTo: doctorUID)
+        .where('date', isEqualTo: date)
+        .get();
+    return snapshot.docs.map((doc) => doc['slot'] as String).toList();
+  }
+
+  Future<void> _saveAppointment(String date, String slot) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || _selectedDoctorUID == null) return;
+
+    await _firestore.collection('appointments').add({
+      'userId': user.uid,
+      'doctor': _selectedDoctorUID,
+      'date': date,
+      'slot': slot,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+
+    await _loadAppointmentsFromDB();
+  }
+
+  Future<void> _deleteAppointment(String id) async {
+    await _firestore.collection('appointments').doc(id).delete();
+    await _loadAppointmentsFromDB();
+  }
+
+  void _showTimeSlots(DateTime date,
+      {String? oldAppointmentId,
+      String? oldSlot,
+      String? doctorUIDOverride}) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if ((_selectedDoctorUID == null && doctorUIDOverride == null) ||
+        user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a doctor first.')),
+      );
+      return;
+    }
+
+    final doctorUID = doctorUIDOverride ?? _selectedDoctorUID!;
+    final dateKey = DateFormat('yyyy-MM-dd').format(date);
+    final docRef = _firestore.collection('users').doc(doctorUID);
+    final docSnapshot = await docRef.get();
+
+    if (!docSnapshot.exists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Doctor not found.')),
+      );
+      return;
+    }
+
+    final docData = docSnapshot.data()!;
+    final startStr = docData['availability_start'] ?? '08:00 AM';
+    final endStr = docData['availability_end'] ?? '04:00 PM';
+
+    try {
+      final startParts = manualSplit(startStr);
+      final endParts = manualSplit(endStr);
+
+      final today = DateTime.now();
+      final start = DateTime(today.year, today.month, today.day,
+          startParts['hour']!, startParts['minute']!);
+      final end = DateTime(today.year, today.month, today.day,
+          endParts['hour']!, endParts['minute']!);
+
+      final isToday = today.year == date.year &&
+          today.month == date.month &&
+          today.day == date.day;
+
+      List<Map<String, dynamic>> timeSlots = [];
+      DateTime curr = start;
+      while (curr.isBefore(end)) {
+        final next = curr.add(const Duration(minutes: 30));
+        bool isPastSlot = isToday && curr.isBefore(today);
+        timeSlots.add({
+          'slot':
+              '${DateFormat.jm().format(curr)} - ${DateFormat.jm().format(next)}',
+          'isPast': isPastSlot,
+        });
+        curr = next;
+      }
+
+      final bookedSlots = (await _getBookedSlots(doctorUID, dateKey))
+          .where((slot) => slot != oldSlot)
+          .toList();
+
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            "Available Slots on ${DateFormat.yMMMEd().format(date)}",
+            textAlign: TextAlign.center,
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: timeSlots.map((slotData) {
+                final slot = slotData['slot'];
+                final isPast = slotData['isPast'];
+                final isBooked = bookedSlots.contains(slot);
+                return ListTile(
+                  title: Text(
+                    isBooked ? '$slot (Booked)' : slot,
+                    style: TextStyle(
+                      color: isPast || isBooked ? Colors.grey : Colors.black,
+                    ),
+                  ),
+                  enabled: !isPast && !isBooked,
+                  onTap: !isPast && !isBooked
+                      ? () async {
+                          Navigator.pop(context);
+                          if (oldAppointmentId != null) {
+                            await _deleteAppointment(oldAppointmentId);
+                          }
+                          await _firestore.collection('appointments').add({
+                            'userId': user.uid,
+                            'doctor': doctorUID,
+                            'date': dateKey,
+                            'slot': slot,
+                            'timestamp': FieldValue.serverTimestamp(),
+                          });
+                          await _loadAppointmentsFromDB();
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content:
+                                    Text('✅ Appointment confirmed for $slot')),
+                          );
+                        }
+                      : null,
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('❌ Error reading availability: $e')),
+      );
+    }
   }
 
   List<DateTime> _generateDaysForMonth(DateTime month) {
@@ -55,213 +258,16 @@ class _SchedulePageState extends State<SchedulePage> {
     return days;
   }
 
-  Future<void> _loadAppointmentsFromDB() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-    final userId = user.uid;
-
-    final snapshot = await _firestore
-        .collection('appointments')
-        .where('userId', isEqualTo: userId)
-        .get();
-
+  void _previousMonth() {
     setState(() {
-      _appointments.clear();
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        final date = data['date'];
-        final slot = data['slot'];
-        final doctor = data['doctor'];
-        _appointments.putIfAbsent(date, () => []).add({
-          'slot': slot,
-          'doctor': doctor,
-        });
-      }
+      _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1);
     });
   }
 
-  Future<List<String>> _getBookedSlots(String doctor, String date) async {
-    final snapshot = await _firestore
-        .collection('appointments')
-        .where('doctor', isEqualTo: doctor)
-        .where('date', isEqualTo: date)
-        .get();
-
-    return snapshot.docs.map((doc) => doc['slot'] as String).toList();
-  }
-
-  Future<void> _saveAppointment(String date, String slot) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null || _selectedDoctor == null) return;
-
-    await _firestore.collection('appointments').add({
-      'userId': user.uid,
-      'doctor': _selectedDoctor,
-      'date': date,
-      'slot': slot,
-      'timestamp': FieldValue.serverTimestamp(),
+  void _nextMonth() {
+    setState(() {
+      _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1);
     });
-
-    await _loadAppointmentsFromDB();
-  }
-
-  Future<void> _deleteAppointment(String date, String slot, String doctor) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    final docs = await _firestore
-        .collection('appointments')
-        .where('userId', isEqualTo: user.uid)
-        .where('date', isEqualTo: date)
-        .where('slot', isEqualTo: slot)
-        .where('doctor', isEqualTo: doctor)
-        .get();
-
-    for (var doc in docs.docs) {
-      await doc.reference.delete();
-    }
-
-    await _loadAppointmentsFromDB();
-  }
-
-  void _showTimeSlots(DateTime date, {String? oldSlot}) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (_selectedDoctor == null || user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a doctor first.')),
-      );
-      return;
-    }
-
-    final dateKey = DateFormat('yyyy-MM-dd').format(date);
-    final timeSlots = List.generate(8, (i) {
-      final start = TimeOfDay(hour: 9 + i, minute: 0);
-      final end = TimeOfDay(hour: 9 + i, minute: 30);
-      return '${start.format(context)} - ${end.format(context)}';
-    });
-
-    final bookedSlots = (await _getBookedSlots(_selectedDoctor!, dateKey))
-        .where((slot) => slot != oldSlot)
-        .toList();
-
-    if (!mounted) return;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-          top: 20,
-          left: 16,
-          right: 16,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              "Available Slots on ${DateFormat.yMMMEd().format(date)}",
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const SizedBox(height: 12),
-            ...timeSlots.map((slot) => ListTile(
-                  title: Text(slot),
-                  enabled: !bookedSlots.contains(slot),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    if (oldSlot != null) {
-                      await _deleteAppointment(dateKey, oldSlot, _selectedDoctor!);
-                    }
-                    await _saveAppointment(dateKey, slot);
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                            '✅ Appointment confirmed for $slot with $_selectedDoctor'),
-                      ),
-                    );
-                  },
-                )),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showConfirmedAppointments() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.grey[100],
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => ListView(
-        padding: const EdgeInsets.all(16),
-        children: _appointments.entries.expand((entry) {
-          return entry.value.map((appt) => Card(
-                elevation: 3,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                child: ListTile(
-                  tileColor: Colors.white,
-                  title: Text(
-                    '${entry.key} - ${appt['slot']}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(
-                    '${appt['doctor']}',
-                    style: const TextStyle(color: Colors.black54),
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.orange),
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _selectedDoctor = appt['doctor'];
-                          _showTimeSlots(
-                            DateFormat('yyyy-MM-dd').parse(entry.key),
-                            oldSlot: appt['slot'],
-                          );
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.redAccent),
-                        onPressed: () async {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              title: const Text('Cancel Appointment'),
-                              content: Text(
-                                'Cancel appointment with ${appt['doctor']} on ${entry.key} at ${appt['slot']}?',
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, false),
-                                  child: const Text('No'),
-                                ),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, true),
-                                  child: const Text('Yes'),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (confirm == true) {
-                            await _deleteAppointment(entry.key, appt['slot']!, appt['doctor']!);
-                            Navigator.pop(context);
-                            _showConfirmedAppointments();
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ));
-        }).toList(),
-      ),
-    );
   }
 
   Widget _buildWeekDays() {
@@ -273,7 +279,7 @@ class _SchedulePageState extends State<SchedulePage> {
                 child: Center(
                   child: Text(
                     day,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 12,
                       color: Colors.black54,
@@ -293,7 +299,7 @@ class _SchedulePageState extends State<SchedulePage> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(24),
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(
               color: Colors.black12,
               blurRadius: 10,
@@ -307,10 +313,15 @@ class _SchedulePageState extends State<SchedulePage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                IconButton(onPressed: _previousMonth, icon: Icon(Icons.chevron_left)),
+                IconButton(
+                    onPressed: _previousMonth,
+                    icon: const Icon(Icons.chevron_left)),
                 Text(DateFormat.yMMMM().format(_currentMonth),
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                IconButton(onPressed: _nextMonth, icon: Icon(Icons.chevron_right)),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 18)),
+                IconButton(
+                    onPressed: _nextMonth,
+                    icon: const Icon(Icons.chevron_right)),
               ],
             ),
             const SizedBox(height: 12),
@@ -318,9 +329,9 @@ class _SchedulePageState extends State<SchedulePage> {
             const SizedBox(height: 8),
             GridView.builder(
               shrinkWrap: true,
-              physics: NeverScrollableScrollPhysics(),
+              physics: const NeverScrollableScrollPhysics(),
               itemCount: days.length,
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 7,
                 mainAxisSpacing: 8,
                 crossAxisSpacing: 6,
@@ -332,19 +343,23 @@ class _SchedulePageState extends State<SchedulePage> {
                 final isToday = date.day == today.day &&
                     date.month == today.month &&
                     date.year == today.year;
-                final isPast = date.isBefore(DateTime(today.year, today.month, today.day));
+                final isPast =
+                    date.isBefore(DateTime(today.year, today.month, today.day));
                 final dateKey = DateFormat('yyyy-MM-dd').format(date);
                 final hasAppointment = _appointments.containsKey(dateKey);
 
                 return GestureDetector(
-                  onTap: (isValid && !isPast) ? () => _showTimeSlots(date) : null,
+                  onTap:
+                      (isValid && !isPast) ? () => _showTimeSlots(date) : null,
                   child: AnimatedContainer(
-                    duration: Duration(milliseconds: 200),
+                    duration: const Duration(milliseconds: 200),
                     decoration: BoxDecoration(
-                      color: isToday ? Colors.blueAccent.withOpacity(0.8) : null,
+                      color:
+                          isToday ? Colors.blueAccent.withOpacity(0.8) : null,
                       borderRadius: BorderRadius.circular(24),
                       border: (isValid && !isPast)
-                          ? Border.all(color: Colors.blueAccent.withOpacity(0.2))
+                          ? Border.all(
+                              color: Colors.blueAccent.withOpacity(0.2))
                           : null,
                     ),
                     alignment: Alignment.center,
@@ -366,7 +381,9 @@ class _SchedulePageState extends State<SchedulePage> {
                             width: 6,
                             height: 6,
                             decoration: BoxDecoration(
-                              color: isPast ? Colors.transparent : Colors.blueAccent,
+                              color: isPast
+                                  ? Colors.transparent
+                                  : Colors.blueAccent,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -387,32 +404,79 @@ class _SchedulePageState extends State<SchedulePage> {
     final days = _generateDaysForMonth(_currentMonth);
     final today = DateTime.now();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Schedule Appointment'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.list_alt),
-            tooltip: 'View My Appointments',
-            onPressed: _showConfirmedAppointments,
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Schedule Appointment'),
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Schedule'),
+              Tab(text: 'My Appointments'),
+            ],
           ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
+        ),
+        body: TabBarView(
           children: [
-            DropdownButton<String>(
-              value: _selectedDoctor,
-              isExpanded: true,
-              hint: const Text('Select Doctor/Specialty'),
-              items: _doctors
-                  .map((doc) => DropdownMenuItem(value: doc, child: Text(doc)))
-                  .toList(),
-              onChanged: (value) => setState(() => _selectedDoctor = value),
+            // Schedule Appointment Tab
+            SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  DropdownButton<String>(
+                    value: _selectedDoctorUID,
+                    isExpanded: true,
+                    hint: const Text('Select Doctor/Specialty'),
+                    items: _doctorList
+                        .map((doc) => DropdownMenuItem(
+                              value: doc['uid'],
+                              child: Text(doc['display']!),
+                            ))
+                        .toList(),
+                    onChanged: (value) =>
+                        setState(() => _selectedDoctorUID = value),
+                  ),
+                  const SizedBox(height: 32),
+                  _buildCalendar(days, today),
+                ],
+              ),
             ),
-            const SizedBox(height: 32),
-            _buildCalendar(days, today),
+            // Manage Appointments Tab
+            ListView.builder(
+              padding: const EdgeInsets.all(24),
+              itemCount: _myAppointments.length,
+              itemBuilder: (context, index) {
+                final appt = _myAppointments[index];
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  child: ListTile(
+                    title: Text('${appt['slot']}'),
+                    subtitle: Text('Date: ${appt['date']}'),
+                    trailing: PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'reschedule') {
+                          final selectedDate = DateTime.parse(appt['date']);
+                          _showTimeSlots(
+                            selectedDate,
+                            oldAppointmentId: appt['id'],
+                            oldSlot: appt['slot'],
+                            doctorUIDOverride: appt['doctor'],
+                          );
+                        } else if (value == 'cancel') {
+                          _deleteAppointment(appt['id']);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                            value: 'reschedule', child: Text('Reschedule')),
+                        const PopupMenuItem(
+                            value: 'cancel', child: Text('Cancel')),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
           ],
         ),
       ),

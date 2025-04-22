@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/service_card.dart';
 import '../widgets/doctor_card.dart';
 import '../widgets/custom_navbar.dart';
@@ -105,88 +106,90 @@ class HomePage extends StatelessWidget {
                       child: ListView(
                         scrollDirection: Axis.horizontal,
                         physics: const ClampingScrollPhysics(),
-                        children: const [
-                          SizedBox(
-                            width: 140,
-                            child: ServiceCard(
-                                title: "Neurology", icon: Icons.psychology),
-                          ),
-                          SizedBox(width: 8),
-                          SizedBox(
-                            width: 140,
-                            child: ServiceCard(
-                                title: "Cardiology", icon: Icons.favorite),
-                          ),
-                          SizedBox(width: 8),
-                          SizedBox(
-                            width: 140,
-                            child: ServiceCard(
-                                title: "Dermatology", icon: Icons.healing),
-                          ),
-                          SizedBox(width: 8),
-                          SizedBox(
-                            width: 140,
-                            child: ServiceCard(
-                                title: "Pediatrics",
-                                icon: Icons.child_friendly),
-                          ),
+                        children: [
+                          _serviceItem(context, "Neurology", Icons.psychology,
+                              "Neurology is the branch of medicine dealing with the diagnosis and treatment of all categories of conditions and diseases involving the nervous system."),
+                          const SizedBox(width: 8),
+                          _serviceItem(context, "Cardiology", Icons.favorite,
+                              "Cardiology is the branch of medicine dealing with disorders of the heart and blood vessels."),
+                          const SizedBox(width: 8),
+                          _serviceItem(context, "Dermatology", Icons.healing,
+                              "Dermatology is the branch of medicine dealing with the skin, nails, hair, and diseases."),
+                          const SizedBox(width: 8),
+                          _serviceItem(
+                              context,
+                              "Pediatrics",
+                              Icons.child_friendly,
+                              "Pediatrics is the branch of medicine dealing with the medical care of infants, children, and adolescents."),
                         ],
                       ),
                     ),
                   ),
                   const SizedBox(height: 32),
                   const Text(
-                    "Top Doctors",
+                    "Our Doctors",
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
                   SizedBox(
-                    height: 140,
-                    child: ScrollConfiguration(
-                      behavior: const MaterialScrollBehavior().copyWith(
-                        dragDevices: {
-                          PointerDeviceKind.mouse,
-                          PointerDeviceKind.touch,
-                        },
-                      ),
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        physics: const ClampingScrollPhysics(),
-                        children: const [
-                          SizedBox(
-                            width: 250,
-                            child: DoctorCard(
-                              name: "Dr. Tala Ray",
-                              title: "Senior Surgeon",
-                              time: "10:30 AM - 3:30",
-                              fee: "\$12",
-                              rating: 5.0,
-                            ),
+                    height: 160,
+                    child: StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('users')
+                          .where('role', isEqualTo: 'doctor')
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        }
+
+                        final doctors = snapshot.data!.docs.map((doc) {
+                          return doc.data() as Map<String, dynamic>;
+                        }).toList();
+
+                        // Sort by experience
+                        doctors.sort((a, b) {
+                          int expA = _experienceToInt(a['experience']);
+                          int expB = _experienceToInt(b['experience']);
+                          return expB.compareTo(expA);
+                        });
+
+                        if (doctors.isEmpty) {
+                          return const Center(child: Text("No doctors found."));
+                        }
+
+                        return ScrollConfiguration(
+                          behavior: const MaterialScrollBehavior().copyWith(
+                            dragDevices: {
+                              PointerDeviceKind.mouse,
+                              PointerDeviceKind.touch,
+                            },
                           ),
-                          SizedBox(width: 16),
-                          SizedBox(
-                            width: 250,
-                            child: DoctorCard(
-                              name: "Dr. Ali Uzair",
-                              title: "Senior Surgeon",
-                              time: "10:00 AM - 4:00",
-                              fee: "\$15",
-                              rating: 4.8,
-                            ),
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: doctors.length,
+                            separatorBuilder: (context, index) =>
+                                const SizedBox(width: 16),
+                            itemBuilder: (context, index) {
+                              final doctor = doctors[index];
+                              return SizedBox(
+                                width: 250,
+                                child: DoctorCard(
+                                  name: "Dr. ${doctor['name'] ?? 'Unknown'}",
+                                  title:
+                                      doctor['specialization'] ?? 'Specialist',
+                                  time:
+                                      "${doctor['availability_start'] ?? 'N/A'} - ${doctor['availability_end'] ?? 'N/A'}",
+                                  fee:
+                                      "\$${doctor['consultation_fees'] ?? '0'}",
+                                  rating: 5.0,
+                                ),
+                              );
+                            },
                           ),
-                          SizedBox(width: 16),
-                          SizedBox(
-                            width: 250,
-                            child: DoctorCard(
-                              name: "Dr. Lina Moe",
-                              title: "Cardiologist",
-                              time: "9:00 AM - 2:00",
-                              fee: "\$20",
-                              rating: 4.9,
-                            ),
-                          ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
                   ),
                 ],
@@ -196,5 +199,52 @@ class HomePage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // Helper for service items popup
+  Widget _serviceItem(
+      BuildContext context, String title, IconData icon, String description) {
+    return InkWell(
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: Text(title),
+              content: Text(description),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Close"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+      child: SizedBox(
+        width: 140,
+        child: ServiceCard(
+          title: title,
+          icon: icon,
+        ),
+      ),
+    );
+  }
+
+  // Helper to map experience strings into sorting numbers
+  static int _experienceToInt(String? exp) {
+    switch (exp) {
+      case "15+ years":
+        return 4;
+      case "10-15 years":
+        return 3;
+      case "5-10 years":
+        return 2;
+      case "0-5 years":
+        return 1;
+      default:
+        return 0;
+    }
   }
 }
